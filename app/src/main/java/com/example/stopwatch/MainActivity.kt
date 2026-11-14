@@ -25,7 +25,8 @@ class MainActivity : Activity() {
     private val blue = Color.rgb(38, 137, 232)
     private val dark = Color.rgb(48, 48, 48)
 
-    enum class Icon { PLAY, STOP, LAP, RESET }
+    // ✅ 修改枚举：移除 RESET，加上 PAUSE
+    enum class Icon { PLAY, PAUSE, LAP, STOP }
 
     private lateinit var timeText: TextView
     private lateinit var lapContainer: LinearLayout
@@ -40,7 +41,6 @@ class MainActivity : Activity() {
     private var lapNumber = 0
     private val laps = mutableListOf<Pair<Int, Long>>()
 
-    // 设置最大限制：60分钟 (60 * 60 * 1000 毫秒)
     private val MAX_DURATION = 3_600_000L 
 
     private val ticker = object : Runnable {
@@ -146,25 +146,27 @@ class MainActivity : Activity() {
 
     private fun onLeftAction() {
         if (running) {
+            // 运行中：左侧触发计次
             val now = currentElapsed()
             lapNumber++
             laps.add(0, lapNumber to (now - lastLapElapsed))
             lastLapElapsed = now
             renderLaps()
         } else if (elapsedBeforeStart > 0L) {
+            // 暂停中：左侧触发停止重置
             resetStopwatch()
         }
     }
 
     private fun onRightAction() {
         if (running) {
+            // 运行中：右侧触发暂停
             elapsedBeforeStart = currentElapsed()
             running = false
             handler.removeCallbacks(ticker)
         } else {
-            if (elapsedBeforeStart >= MAX_DURATION) {
-                return
-            }
+            // 未开始/暂停中：右侧触发开始或继续
+            if (elapsedBeforeStart >= MAX_DURATION) return
             startRealtime = SystemClock.elapsedRealtime() - elapsedBeforeStart
             running = true
             handler.removeCallbacks(ticker)
@@ -213,18 +215,21 @@ class MainActivity : Activity() {
 
     private fun renderButtons() {
         if (running) {
+            // 图2：运行中 -> 左计次，右暂停（竖杠）
             leftButton.icon = Icon.LAP
             leftButton.contentDescription = "计次"
-            rightButton.icon = Icon.STOP
-            rightButton.contentDescription = "停止"
+            rightButton.icon = Icon.PAUSE
+            rightButton.contentDescription = "暂停"
             leftButton.visibility = View.VISIBLE
         } else if (elapsedBeforeStart > 0L) {
-            leftButton.icon = Icon.RESET
-            leftButton.contentDescription = "重置"
+            // 图3：暂停中 -> 左停止（方块），右播放（继续）
+            leftButton.icon = Icon.STOP
+            leftButton.contentDescription = "停止"
             rightButton.icon = Icon.PLAY
             rightButton.contentDescription = "继续"
             leftButton.visibility = View.VISIBLE
         } else {
+            // 图1：未开始 -> 只有播放
             leftButton.visibility = View.GONE
             rightButton.icon = Icon.PLAY
             rightButton.contentDescription = "开始"
@@ -303,37 +308,42 @@ class MainActivity : Activity() {
             canvas.save()
             canvas.translate(cx, cy)
             canvas.scale(scale, scale)
+            
             when (icon) {
                 Icon.PLAY -> {
+                    // 播放：向右的三角形
                     val p = Path().apply {
                         moveTo(-10f, -17f); lineTo(18f, 0f); lineTo(-10f, 17f); close()
                     }
                     canvas.drawPath(p, paint)
                 }
+                Icon.PAUSE -> {
+                    // ✅ 暂停：两条竖杠（圆角矩形）
+                    val r1 = RectF(-13f, -16f, -4f, 16f)
+                    canvas.drawRoundRect(r1, 3f, 3f, paint)
+                    val r2 = RectF(4f, -16f, 13f, 16f)
+                    canvas.drawRoundRect(r2, 3f, 3f, paint)
+                }
                 Icon.STOP -> {
-                    // ✅ 圆角实心方块，对应运行时的“停止”按钮
-                    val rect = RectF(-16f, -16f, 16f, 16f)
+                    // ✅ 停止：圆角实心方块（放在左侧用于归零重置）
+                    val rect = RectF(-15f, -15f, 15f, 15f)
                     canvas.drawRoundRect(rect, 8f, 8f, paint)
                 }
                 Icon.LAP -> {
+                    // 计次：竖线+直角三角形旗帜
                     paint.style = Paint.Style.STROKE
                     paint.strokeWidth = 5f
-                    canvas.drawLine(-8f, -19f, -8f, 18f, paint)
+                    paint.strokeCap = Paint.Cap.ROUND
+                    canvas.drawLine(-10f, -22f, -10f, 22f, paint) // 旗杆
+                    
                     paint.style = Paint.Style.FILL
+                    paint.strokeCap = Paint.Cap.BUTT
                     val p = Path().apply {
-                        moveTo(-5f, -17f); lineTo(17f, 0f); lineTo(-5f, 0f); close()
-                    }
-                    canvas.drawPath(p, paint)
-                }
-                Icon.RESET -> {
-                    // ✅ 完美还原第一版的经典圆弧重置图标
-                    paint.style = Paint.Style.STROKE
-                    paint.strokeWidth = 5f
-                    val oval = RectF(-14f, -14f, 14f, 14f)
-                    canvas.drawArc(oval, -55f, 285f, false, paint)
-                    paint.style = Paint.Style.FILL
-                    val p = Path().apply {
-                        moveTo(8f, -20f); lineTo(19f, -17f); lineTo(11f, -8f); close()
+                        moveTo(-7f, -18f)
+                        lineTo(16f, -18f)
+                        lineTo(16f, 2f)
+                        lineTo(-7f, 2f)
+                        close()
                     }
                     canvas.drawPath(p, paint)
                 }
