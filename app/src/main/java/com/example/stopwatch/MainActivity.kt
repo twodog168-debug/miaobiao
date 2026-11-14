@@ -81,16 +81,17 @@ class MainActivity : Activity() {
         }
         val centerParams = LinearLayout.LayoutParams(-1, 0, 1f)
         timeText = TextView(this).apply {
-            text = "00:00:00.00"
-            setTextColor(dark)
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            textSize = 55f
-            typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
-            letterSpacing = -0.025f
-            maxLines = 1
-            setSingleLine(true)
-        }
+    text = "00:00:00.00"
+    setTextColor(dark)
+    gravity = Gravity.CENTER
+    includeFontPadding = false
+    textSize = 55f
+    // ✅ 等宽粗体：绝对不抖，且够粗
+    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    maxLines = 1
+    setSingleLine(true)
+    // 注意：去掉了 letterSpacing，等宽字体自带固定字距，再加负值会挤在一起
+}
         centerArea.addView(timeText, LinearLayout.LayoutParams(-1, dp(100)))
 
         val scroll = ScrollView(this).apply {
