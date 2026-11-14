@@ -25,7 +25,6 @@ class MainActivity : Activity() {
     private val blue = Color.rgb(38, 137, 232)
     private val dark = Color.rgb(48, 48, 48)
 
-    // ✅ 将 PAUSE 改为 STOP
     enum class Icon { PLAY, STOP, LAP, RESET }
 
     private lateinit var timeText: TextView
@@ -216,7 +215,6 @@ class MainActivity : Activity() {
         if (running) {
             leftButton.icon = Icon.LAP
             leftButton.contentDescription = "计次"
-            // ✅ 右侧改为 STOP
             rightButton.icon = Icon.STOP
             rightButton.contentDescription = "停止"
             leftButton.visibility = View.VISIBLE
@@ -313,7 +311,7 @@ class MainActivity : Activity() {
                     canvas.drawPath(p, paint)
                 }
                 Icon.STOP -> {
-                    // ✅ 绘制类似截图的圆角实心方块
+                    // ✅ 圆角实心方块，对应运行时的“停止”按钮
                     val rect = RectF(-16f, -16f, 16f, 16f)
                     canvas.drawRoundRect(rect, 8f, 8f, paint)
                 }
@@ -328,21 +326,14 @@ class MainActivity : Activity() {
                     canvas.drawPath(p, paint)
                 }
                 Icon.RESET -> {
+                    // ✅ 完美还原第一版的经典圆弧重置图标
                     paint.style = Paint.Style.STROKE
                     paint.strokeWidth = 5f
-                    paint.strokeCap = Paint.Cap.ROUND
-                    
-                    val oval = RectF(-15f, -15f, 15f, 15f)
-                    canvas.drawArc(oval, -60f, 300f, false, paint)
-                    
+                    val oval = RectF(-14f, -14f, 14f, 14f)
+                    canvas.drawArc(oval, -55f, 285f, false, paint)
                     paint.style = Paint.Style.FILL
-                    paint.strokeCap = Paint.Cap.BUTT
-                    
                     val p = Path().apply {
-                        moveTo(16f, -16f)
-                        lineTo(6f, -20f)
-                        lineTo(13f, -8f)
-                        close()
+                        moveTo(8f, -20f); lineTo(19f, -17f); lineTo(11f, -8f); close()
                     }
                     canvas.drawPath(p, paint)
                 }
