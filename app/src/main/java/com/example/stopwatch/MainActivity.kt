@@ -15,6 +15,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import android.graphics.Color
 import android.graphics.Typeface
 import android.util.TypedValue
@@ -24,8 +25,8 @@ class MainActivity : Activity() {
     private val blue = Color.rgb(38, 137, 232)
     private val dark = Color.rgb(48, 48, 48)
 
-    // ✅ 枚举类放在这里
-    enum class Icon { PLAY, PAUSE, LAP, RESET }
+    // ✅ 将 PAUSE 改为 STOP
+    enum class Icon { PLAY, STOP, LAP, RESET }
 
     private lateinit var timeText: TextView
     private lateinit var lapContainer: LinearLayout
@@ -39,6 +40,9 @@ class MainActivity : Activity() {
     private var lastLapElapsed = 0L
     private var lapNumber = 0
     private val laps = mutableListOf<Pair<Int, Long>>()
+
+    // 设置最大限制：60分钟 (60 * 60 * 1000 毫秒)
+    private val MAX_DURATION = 3_600_000L 
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -76,12 +80,11 @@ class MainActivity : Activity() {
         }
         page.addView(header, LinearLayout.LayoutParams(-1, dp(64)))
 
-        // ✅ 使用 FrameLayout 让时间绝对居中，不受下方计次列表影响
         val centerArea = FrameLayout(this)
         val centerParams = LinearLayout.LayoutParams(-1, 0, 1f)
 
         timeText = TextView(this).apply {
-            text = "00:00:00.00"
+            text = "00:00.00"
             setTextColor(dark)
             gravity = Gravity.CENTER
             includeFontPadding = false
@@ -90,7 +93,6 @@ class MainActivity : Activity() {
             maxLines = 1
             setSingleLine(true)
             
-            // ✅ 动态自适应字号：防止粗体太宽超出屏幕
             post {
                 val availableWidth = width - paddingLeft - paddingRight
                 if (availableWidth > 0) {
@@ -105,7 +107,6 @@ class MainActivity : Activity() {
             }
         }
         
-        // ✅ 将时间绝对固定在正中间
         centerArea.addView(timeText, FrameLayout.LayoutParams(-1, -2).apply {
             gravity = Gravity.CENTER
         })
@@ -120,7 +121,6 @@ class MainActivity : Activity() {
         }
         scroll.addView(lapContainer)
         
-        // ✅ 计次列表放在下半区（限高，防止圈数多时遮挡时间）
         centerArea.addView(scroll, FrameLayout.LayoutParams(-1, dp(220)).apply {
             gravity = Gravity.BOTTOM
         })
@@ -163,6 +163,9 @@ class MainActivity : Activity() {
             running = false
             handler.removeCallbacks(ticker)
         } else {
+            if (elapsedBeforeStart >= MAX_DURATION) {
+                return
+            }
             startRealtime = SystemClock.elapsedRealtime() - elapsedBeforeStart
             running = true
             handler.removeCallbacks(ticker)
@@ -189,20 +192,33 @@ class MainActivity : Activity() {
         if (running) SystemClock.elapsedRealtime() - startRealtime else elapsedBeforeStart
 
     private fun updateTime() {
-        val ms = currentElapsed().coerceAtLeast(0L)
-        val hours = ms / 3_600_000L
-        val minutes = (ms / 60_000L) % 60
+        var ms = currentElapsed().coerceAtLeast(0L)
+        
+        if (ms >= MAX_DURATION) {
+            ms = MAX_DURATION
+            if (running) {
+                running = false
+                elapsedBeforeStart = MAX_DURATION
+                handler.removeCallbacks(ticker)
+                renderButtons()
+                Toast.makeText(this, "已达 60 分钟上限，自动停止", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        val minutes = ms / 60_000L
         val seconds = (ms / 1_000L) % 60
         val centiseconds = (ms % 1_000L) / 10L
-        timeText.text = String.format("%02d:%02d:%02d.%02d", hours, minutes, seconds, centiseconds)
+        
+        timeText.text = String.format("%02d:%02d.%02d", minutes, seconds, centiseconds)
     }
 
     private fun renderButtons() {
         if (running) {
             leftButton.icon = Icon.LAP
             leftButton.contentDescription = "计次"
-            rightButton.icon = Icon.PAUSE
-            rightButton.contentDescription = "暂停"
+            // ✅ 右侧改为 STOP
+            rightButton.icon = Icon.STOP
+            rightButton.contentDescription = "停止"
             leftButton.visibility = View.VISIBLE
         } else if (elapsedBeforeStart > 0L) {
             leftButton.icon = Icon.RESET
@@ -231,7 +247,7 @@ class MainActivity : Activity() {
                 setPadding(dp(8), dp(10), dp(8), dp(10))
             }
             val label = TextView(this).apply {
-                text = "第 $number 次"
+                text = "第 $number 圈"
                 textSize = 16f
                 setTextColor(when (number) {
                     best -> Color.rgb(30, 150, 90)
@@ -296,11 +312,10 @@ class MainActivity : Activity() {
                     }
                     canvas.drawPath(p, paint)
                 }
-                Icon.PAUSE -> {
-                    val r = RectF(-14f, -17f, -5f, 17f)
-                    canvas.drawRoundRect(r, 2f, 2f, paint)
-                    val r2 = RectF(5f, -17f, 14f, 17f)
-                    canvas.drawRoundRect(r2, 2f, 2f, paint)
+                Icon.STOP -> {
+                    // ✅ 绘制类似截图的圆角实心方块
+                    val rect = RectF(-16f, -16f, 16f, 16f)
+                    canvas.drawRoundRect(rect, 8f, 8f, paint)
                 }
                 Icon.LAP -> {
                     paint.style = Paint.Style.STROKE
@@ -315,11 +330,19 @@ class MainActivity : Activity() {
                 Icon.RESET -> {
                     paint.style = Paint.Style.STROKE
                     paint.strokeWidth = 5f
-                    val oval = RectF(-14f, -14f, 14f, 14f)
-                    canvas.drawArc(oval, -55f, 285f, false, paint)
+                    paint.strokeCap = Paint.Cap.ROUND
+                    
+                    val oval = RectF(-15f, -15f, 15f, 15f)
+                    canvas.drawArc(oval, -60f, 300f, false, paint)
+                    
                     paint.style = Paint.Style.FILL
+                    paint.strokeCap = Paint.Cap.BUTT
+                    
                     val p = Path().apply {
-                        moveTo(8f, -20f); lineTo(19f, -17f); lineTo(11f, -8f); close()
+                        moveTo(16f, -16f)
+                        lineTo(6f, -20f)
+                        lineTo(13f, -8f)
+                        close()
                     }
                     canvas.drawPath(p, paint)
                 }
