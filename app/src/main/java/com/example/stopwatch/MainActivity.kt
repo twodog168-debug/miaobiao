@@ -23,6 +23,9 @@ class MainActivity : Activity() {
     private val blue = Color.rgb(38, 137, 232)
     private val dark = Color.rgb(48, 48, 48)
 
+    // ✅ 把枚举类移到 inner class 外面，放在 MainActivity 类体里
+    enum class Icon { PLAY, PAUSE, LAP, RESET }
+
     private lateinit var timeText: TextView
     private lateinit var lapContainer: LinearLayout
     private lateinit var leftButton: IconButton
@@ -174,20 +177,20 @@ class MainActivity : Activity() {
 
     private fun renderButtons() {
         if (running) {
-            leftButton.icon = IconButton.Icon.LAP
+            leftButton.icon = Icon.LAP          // ✅ 改这里
             leftButton.contentDescription = "计次"
-            rightButton.icon = IconButton.Icon.PAUSE
+            rightButton.icon = Icon.PAUSE       // ✅ 改这里
             rightButton.contentDescription = "暂停"
             leftButton.visibility = View.VISIBLE
         } else if (elapsedBeforeStart > 0L) {
-            leftButton.icon = IconButton.Icon.RESET
+            leftButton.icon = Icon.RESET        // ✅ 改这里
             leftButton.contentDescription = "重置"
-            rightButton.icon = IconButton.Icon.PLAY
+            rightButton.icon = Icon.PLAY        // ✅ 改这里
             rightButton.contentDescription = "继续"
             leftButton.visibility = View.VISIBLE
         } else {
             leftButton.visibility = View.GONE
-            rightButton.icon = IconButton.Icon.PLAY
+            rightButton.icon = Icon.PLAY        // ✅ 改这里
             rightButton.contentDescription = "开始"
         }
         leftButton.invalidate()
@@ -239,8 +242,8 @@ class MainActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
 
     private inner class IconButton(context: android.content.Context) : View(context) {
-        enum class Icon { PLAY, PAUSE, LAP, RESET }
-        var icon: Icon = Icon.PLAY
+        // ❌ 删掉原来这里的 enum class Icon { PLAY, PAUSE, LAP, RESET }
+        var icon: Icon = Icon.PLAY   // ✅ 仍能引用 MainActivity 里的 Icon
 
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = blue
