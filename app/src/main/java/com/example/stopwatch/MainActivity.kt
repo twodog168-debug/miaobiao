@@ -11,6 +11,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -23,7 +24,7 @@ class MainActivity : Activity() {
     private val blue = Color.rgb(38, 137, 232)
     private val dark = Color.rgb(48, 48, 48)
 
-    // ✅ 把枚举类移到 inner class 外面，放在 MainActivity 类体里
+    // ✅ 枚举类放在这里
     enum class Icon { PLAY, PAUSE, LAP, RESET }
 
     private lateinit var timeText: TextView
@@ -75,24 +76,39 @@ class MainActivity : Activity() {
         }
         page.addView(header, LinearLayout.LayoutParams(-1, dp(64)))
 
-        val centerArea = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-        }
+        // ✅ 使用 FrameLayout 让时间绝对居中，不受下方计次列表影响
+        val centerArea = FrameLayout(this)
         val centerParams = LinearLayout.LayoutParams(-1, 0, 1f)
+
         timeText = TextView(this).apply {
-    text = "00:00:00.00"
-    setTextColor(dark)
-    gravity = Gravity.CENTER
-    includeFontPadding = false
-    textSize = 55f
-    // ✅ 等宽粗体：绝对不抖，且够粗
-    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-    maxLines = 1
-    setSingleLine(true)
-    // 注意：去掉了 letterSpacing，等宽字体自带固定字距，再加负值会挤在一起
-}
-        centerArea.addView(timeText, LinearLayout.LayoutParams(-1, dp(100)))
+            text = "00:00:00.00"
+            setTextColor(dark)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            textSize = 55f
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+            maxLines = 1
+            setSingleLine(true)
+            
+            // ✅ 动态自适应字号：防止粗体太宽超出屏幕
+            post {
+                val availableWidth = width - paddingLeft - paddingRight
+                if (availableWidth > 0) {
+                    var currentSize = 55f
+                    var textWidth = paint.measureText(text.toString())
+                    while (textWidth > availableWidth && currentSize > 12f) {
+                        currentSize -= 1f
+                        textSize = currentSize
+                        textWidth = paint.measureText(text.toString())
+                    }
+                }
+            }
+        }
+        
+        // ✅ 将时间绝对固定在正中间
+        centerArea.addView(timeText, FrameLayout.LayoutParams(-1, -2).apply {
+            gravity = Gravity.CENTER
+        })
 
         val scroll = ScrollView(this).apply {
             isFillViewport = false
@@ -103,7 +119,12 @@ class MainActivity : Activity() {
             setPadding(dp(8), dp(10), dp(8), dp(10))
         }
         scroll.addView(lapContainer)
-        centerArea.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        
+        // ✅ 计次列表放在下半区（限高，防止圈数多时遮挡时间）
+        centerArea.addView(scroll, FrameLayout.LayoutParams(-1, dp(220)).apply {
+            gravity = Gravity.BOTTOM
+        })
+
         page.addView(centerArea, centerParams)
 
         val controls = LinearLayout(this).apply {
@@ -178,20 +199,20 @@ class MainActivity : Activity() {
 
     private fun renderButtons() {
         if (running) {
-            leftButton.icon = Icon.LAP          // ✅ 改这里
+            leftButton.icon = Icon.LAP
             leftButton.contentDescription = "计次"
-            rightButton.icon = Icon.PAUSE       // ✅ 改这里
+            rightButton.icon = Icon.PAUSE
             rightButton.contentDescription = "暂停"
             leftButton.visibility = View.VISIBLE
         } else if (elapsedBeforeStart > 0L) {
-            leftButton.icon = Icon.RESET        // ✅ 改这里
+            leftButton.icon = Icon.RESET
             leftButton.contentDescription = "重置"
-            rightButton.icon = Icon.PLAY        // ✅ 改这里
+            rightButton.icon = Icon.PLAY
             rightButton.contentDescription = "继续"
             leftButton.visibility = View.VISIBLE
         } else {
             leftButton.visibility = View.GONE
-            rightButton.icon = Icon.PLAY        // ✅ 改这里
+            rightButton.icon = Icon.PLAY
             rightButton.contentDescription = "开始"
         }
         leftButton.invalidate()
@@ -210,7 +231,7 @@ class MainActivity : Activity() {
                 setPadding(dp(8), dp(10), dp(8), dp(10))
             }
             val label = TextView(this).apply {
-                text = "第 $number 圈"
+                text = "第 $number 次"
                 textSize = 16f
                 setTextColor(when (number) {
                     best -> Color.rgb(30, 150, 90)
@@ -243,8 +264,7 @@ class MainActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
 
     private inner class IconButton(context: android.content.Context) : View(context) {
-        // ❌ 删掉原来这里的 enum class Icon { PLAY, PAUSE, LAP, RESET }
-        var icon: Icon = Icon.PLAY   // ✅ 仍能引用 MainActivity 里的 Icon
+        var icon: Icon = Icon.PLAY
 
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = blue
